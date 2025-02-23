@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="/socket.io/socket.io.js"></script> 
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="./jquery.js"></script>
+</head>
+<body>
+    <div class="drawing_container">
+        <section class="tools_board">
+            <div class="row">
+                <label class="tittle">Shapes</label>
+                <ul class="options">
+                    <li class="option tools" id="rectangle">
+                        <img src="icons/rectangle.svg" alt="">
+                        <span>Rectange</span>
+                    </li>  
+                    <li class="option tools" id="circle">
+                        <img src="icons/circle.svg" alt="">
+                        <span>Circle</span>
+                    </li>
+                    <li class="option tools" id="triangle">
+                        <img src="icons/triangle.svg" alt="">
+                        <span>Triangle</span>
+                    </li> 
+                    <li class="option tools" id="line">
+                        <img src="icons/Line.jpg" alt="">
+                        <span>Line</span>
+                    </li>
+                    <li class="option">
+                        <input type="checkbox" name="" id="fill_color">
+                        <label for="fill_color_picker">Fill Color</label>
+                        <input type="color" id="fill_color_picker">
+                    </li>  
+                </ul>
+            </div>
+            <div class="row">
+                <label class="tittle">Options</label>
+                <ul class="options">
+                    <li class="option active tools" id="brush">
+                        <img src="icons/brush.svg" alt="">
+                        <span>Brush</span>
+                    </li>  
+                    <li class="option tools" id="eraser">
+                        <img src="icons/eraser.svg" alt="">
+                        <span>Eraser</span>
+                    </li>
+           
+                    <li class="option">
+                        <input type="range" name="" id="size_slider" min="1" max="40" value="5">  
+                    </li>  
+                </ul>
+            </div>
+            <div class="row colors">
+                <label class="tittle">Colors</label>
+                <ul class="options">
+                    <li class="option selected"></li>
+                    <li class="option"></li>
+                    <li class="option"></li>
+                    <li class="option"></li>
+                    <li class="option"></li>
+                </ul>
+                <ul class="options colors2">
+                    <li class="option selected"></li>
+                    <li class="option"></li>
+                    <li class="option"></li>
+                    <li class="option"></li>
+                    <li class="option"></li>
+                </ul>
+                <div class="color_picker">
+                    <input type="color" name="" id="colorPicker">
+                </div>
+            </div>
+            <div class="row buttons">
+                <button class="clear_canvas">Clear Canvas</button>
+                <button class="save_image">Save As Image</button>
+            </div>
+        </section>
+        <section class="drawing_board">
+            <canvas></canvas>
+        </section>
+    </div>
+
+    <script src="script.js" type="module" defer></script>
+</body>
+</html>
