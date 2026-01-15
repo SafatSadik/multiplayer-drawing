@@ -1,7 +1,5 @@
 {
   "dependencies": {
-    "cors": "^2.8.5",
-    "ejs": "^3.1.10",
     "express": "^4.21.2",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1"
@@ -9,7 +7,7 @@
   "scripts": {
     "start": "node server.js"
   },
-  "name": "drawing",
+  "name": "Multiplayer_Drawing_by_Safat",
   "version": "1.0.0",
   "main": "script.js",
   "keywords": [],
