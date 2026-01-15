@@ -6,7 +6,13 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multiplayer Drawing by Safat</title>
+    <!-- [picker] -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/monolith.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+
+    <!-- hammer -->
     <script src="./hammer.js"></script>
+    <!-- socker -->
     <script src="/socket.io/socket.io.js"></script>
 
     <link rel="stylesheet" href="style.css">
@@ -88,6 +94,24 @@
         </section>
         <section class="drawing_board">
             <canvas></canvas>
+
+
+
+            <div id="chat-toast">
+                <span class="msg">✨ User joined the room</span>
+            </div>
+
+
+            <div id="chat-input-container">
+                <input type="text" id="chat-input" placeholder="Type your message..." />
+                <button id="send-btn">Send</button>
+            </div>
+
+
+
+            <div id="colorPickerContainer"></div>
+
+
             <div class="side_button_container">
                 <div class="reload_button side_buttons">
                     <svg xmlns="http://www.w3.org/2000/svg"
@@ -114,16 +138,14 @@
                 <input type="range" min="1" max="50" value="5" class="phon_size_slider ">
             </div>
 
-<label for="fill_color" class="checkbox">
-    <span class="checkmark"></span>
-    <div>Fill</div>
-</label>
+            <label class="checkbox">
+                <span class="checkmark "></span>
+                <div>Fill</div>
+            </label>
 
 
             <div class="tool_hub ">
                 <div class="tool stroke">
-                    <input type="color" name="" id="" class="phone_stroke_input hidden">
-
                     <svg xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 576 512"><!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.-->
                         <path
@@ -131,7 +153,6 @@
                     </svg>
                 </div>
                 <div class="tool fill">
-                    <input type="color" name="" id="" class="phone_fill_input hidden">
                     <svg xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 512 512"><!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.-->
                         <path

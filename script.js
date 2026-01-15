@@ -24,10 +24,15 @@ io.on("connection", (socket) => {
         socket.broadcast.emit("draw", data);
     });
 
+    socket.on("msg", (msg) => {
+        socket.broadcast.emit("msg", msg); 
+    });
+
+
     socket.on("clear", () => {
         socket.broadcast.emit("clear");
     });
-    socket.on("message",(data) => {
+    socket.on("message", (data) => {
         console.log(data)
     })
 

@@ -564,38 +564,170 @@ body {
         top: 50%;
         right: 0px;
         flex-direction: column;
-        transform: translate(-50% ,-50%);
+        transform: translate(-50%, -50%);
+        display: none;
+    }
+
+    .checkbox.show {
+        display: block !important;
+    }
+
+    .checkbox input {
+        display: none;
+    }
+
+    .checkmark {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        border: 2px solid #444;
+        background: transparent;
+        transition: 0.2s;
+    }
+
+
+    /* filled when checked */
+    .checked {
+        background: #000;
+        border-color: #000;
+    }
+
+    /* optional check icon */
+    .checked::after {
+        content: "✓";
+        color: #fff;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+    }
+
+    #colorPickerContainer {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 12;
+        pointer-events: none;
+        /* picker takes its own events */
+    }
+
+    .pcr-app {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        z-index: 12 !important;
+    }
+
+    #chat-toast {
+        position: fixed;
+        top: -110px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 92%;
+        max-width: 520px;
+
+        background: linear-gradient(135deg, #ffd6e8, #dff1ff);
+        color: #2b2b2b;
+
+        padding: 18px 22px 22px;
+        border-radius: 18px 18px 26px 26px;
+
+        font-size: 17px;
+        font-weight: 600;
+        text-align: center;
+
+        box-shadow:
+            0 14px 35px rgba(255, 120, 180, 0.35),
+            0 6px 12px rgba(0, 0, 0, 0.08);
+
+        z-index: 9999;
+        opacity: 0;
+
+        transition:
+            top 0.5s cubic-bezier(.25, .9, .25, 1),
+            opacity 0.25s;
+    }
+
+    /* Cute bottom notch */
+    #chat-toast::after {
+        content: "";
+        position: absolute;
+        bottom: -12px;
+        left: 50%;
+        transform: translateX(-50%) rotate(45deg);
+        width: 20px;
+        height: 20px;
+        background: #dff1ff;
+        border-radius: 4px;
+    }
+
+    #chat-toast.show {
+        top: 16px;
+        opacity: 1;
+    }
+
+    #chat-input-container {
+        position: fixed;
+        bottom: -90px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 92%;
+        max-width: 500px;
+
+        display: flex;
+        gap: 10px;
+        /* space between input and button */
+        background: #ffd6e8;
+        padding: 10px;
+        /* reduce padding to fit button */
+        border-radius: 16px;
+        box-shadow: 0 8px 24px rgba(255, 126, 179, 0.3);
+
+        transition: bottom 0.35s cubic-bezier(.2, .8, .2, 1);
+        z-index: 9999;
+    }
+
+    #chat-input-container.show {
+        bottom: 20px;
+        animation: popIn 0.3s ease-out;
+    }
+    @keyframes popIn {
+    0% { transform: translateX(-50%) translateY(50px); opacity: 0; }
+    80% { transform: translateX(-50%) translateY(-5px); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(0); opacity: 1; }
 }
 
-.checkbox input {
-    display: none;
-}
+    #chat-input-container input {
+        flex: 1;
+        min-width: 0;
+        border: none;
+        outline: none;
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 16px;
+        background: white;
+        box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
 
-.checkmark {
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    border: 2px solid #444;
-    background: transparent;
-    transition: 0.2s;
-}
+    #chat-input-container #send-btn {
+        flex-shrink: 0;
+        border: none;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 16px;
+        cursor: pointer;
+        background: #7aa2ff;
+        color: white;
+        box-shadow: 0 4px 10px rgba(122, 162, 255, 0.35);
+    }
 
-/* filled when checked */
-#fill_color:checked + .checkmark {
-    background: #000;
-    border-color: #000;
-}
 
-/* optional check icon */
-#fill_color:checked + .checkmark::after {
-    content: "✓";
-    color: #fff;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-}
+
+
+
 
 
 

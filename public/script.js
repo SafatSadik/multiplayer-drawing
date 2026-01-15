@@ -16,9 +16,10 @@ let brushWidth = sizeSlider.value;
 let selectedtool = "brush";
 let prevMouseX, prevMouseY, snapshot;
 let selectedColor = "#000";
-let selectedFillColor = "#ffffff";
+let selectedFillColor = "#2980d1";
 let userId = Math.random().toString(36).substring(7);
-let shapeData 
+let shapeData
+let isFillEnabled = false;
 
 
 
@@ -34,11 +35,108 @@ const phon_size_slider = document.querySelector(".phon_size_slider");
 const phone_fill_input = document.querySelector(".phone_fill_input");
 const phone_stroke_input = document.querySelector(".phone_stroke_input");
 const side_button_container = document.querySelector(".side_button_container");
+const checkmark = document.querySelector(".checkmark");
 const fab_item = document.querySelectorAll(".fab-item");
+const toast = document.getElementById("chat-toast");
+const addTextBtn = document.querySelector(".add_text");
+const chatContainer = document.getElementById("chat-input-container");
+const chatInput = document.getElementById("chat-input");
+const sendBtn = document.getElementById("send-btn");
+
+let toastTimer;
+
+addTextBtn.addEventListener("click", () => {
+    chatContainer.classList.add("show");
+    chatInput.focus(); // bring up the phone keyboard
+});
+
+// Optional: send message
+sendBtn.addEventListener("click", () => {
+    const msg = chatInput.value.trim();
+    if (!msg) return;
+    socket.emit("msg", msg)
+    chatInput.value = "";
+    chatContainer.classList.remove("show");
+});
+
+chatInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") sendBtn.click();
+});
+
+function showChatMessage(text, duration = 4000) {
+    clearTimeout(toastTimer);
+    toast.querySelector(".msg").textContent = text;
+    toast.classList.add("show");
+
+    toastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+    }, duration);
+}
+socket.on("msg", (msg) => {
+    showChatMessage(msg)
+})
+
+let currentTarget = null;
+
+// create pickr instance
+const pickr = Pickr.create({
+    el: "#colorPickerContainer",
+    theme: "monolith",
+    default: "#000000",
+    components: {
+        preview: true,
+        opacity: true,
+        hue: true,
+        interaction: {
+            hex: true,
+            rgba: true,
+            input: true,
+            // save: true
+        }
+    }
+});
 
 
 
-let fill_allow = window.innerWidth>768 ? fillColor.checked : true
+stroke.addEventListener("click", () => {
+    currentTarget = "stroke";
+    pickr.setColor(selectedColor);
+    pickr.show();
+})
+fill.addEventListener("click", () => {
+    currentTarget = "fill";
+    pickr.setColor(selectedFillColor);
+    pickr.show();
+})
+
+// handle color save
+pickr.on("change", (color) => {
+    const c = color.toHEXA().toString();
+
+    if (currentTarget === "stroke") {
+        selectedColor = c;
+        stroke.style.backgroundColor = c;
+    } else {
+        selectedFillColor = c;
+        fill.style.backgroundColor = c;
+    }
+});
+document.addEventListener("pointerdown", (e) => {
+    // delay so Pickr can process the event first
+    requestAnimationFrame(() => {
+        const pickerApp = e.target.closest(".pcr-app");
+        const isPicker = !!pickerApp;
+
+        if (!isPicker && pickr.isOpen()) {
+            pickr.hide();
+        }
+
+        if (!chatContainer.contains(e.target) && e.target !== addTextBtn) {
+            chatContainer.classList.remove("show");
+        }
+    });
+});
+
 
 
 toggle.addEventListener("click", () => {
@@ -46,25 +144,10 @@ toggle.addEventListener("click", () => {
     tool_hub.classList.toggle("show");
     phon_size_slider.classList.toggle("show");
     side_button_container.classList.toggle("active")
+    checkmark.classList.toggle("show")
 });
 stroke.style.backgroundColor = selectedColor
 fill.style.backgroundColor = selectedFillColor
-
-
-phone_fill_input.addEventListener("change", () => {
-    selectedFillColor = phone_fill_input.value;
-    fill.style.backgroundColor = selectedFillColor
-});
-phone_stroke_input.addEventListener("change", () => {
-    selectedColor = phone_stroke_input.value;
-    stroke.style.backgroundColor = selectedColor
-});
-stroke.addEventListener("click", () => {
-    phone_stroke_input.click()
-})
-fill.addEventListener("click", () => {
-    phone_fill_input.click()
-})
 
 fab_item.forEach((button) => {
     button.addEventListener("click", () => {
@@ -83,6 +166,19 @@ reload_button.addEventListener("click", () => {
     socket.emit("clear");
     location.reload()
 })
+
+
+
+checkmark.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    isFillEnabled = checkmark.classList.toggle("checked");
+    fillColor.checked = isFillEnabled;
+});
+// fillColor.addEventListener("change", () => {
+//     isFillEnabled = fillColor.checked
+// })
+// safat bug
+
 
 // --------------------------------------- phone finish
 
@@ -262,8 +358,8 @@ function drawing(e) {
         ctx.stroke();
         socket.emit("draw", { userId, type: "brush", x: p.x, y: p.y, color: ctx.strokeStyle, width: ctx.lineWidth });
     } else {
-        drawShape(selectedtool, prevMouseX, prevMouseY, p.x - prevMouseX, p.y - prevMouseY, selectedColor, fill_allow, selectedFillColor, brushWidth);
-        shapeData = { userId, type: selectedtool, x: prevMouseX, y: prevMouseY, width: p.x - prevMouseX, height: p.y - prevMouseY, color: selectedColor, fill: fill_allow, fill_color: selectedFillColor, lineWidth: brushWidth }
+        drawShape(selectedtool, prevMouseX, prevMouseY, p.x - prevMouseX, p.y - prevMouseY, selectedColor, isFillEnabled, selectedFillColor, brushWidth);
+        shapeData = { userId, type: selectedtool, x: prevMouseX, y: prevMouseY, width: p.x - prevMouseX, height: p.y - prevMouseY, color: selectedColor, fill: isFillEnabled, fill_color: selectedFillColor, lineWidth: brushWidth }
     }
 }
 
