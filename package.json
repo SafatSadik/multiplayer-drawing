@@ -5,9 +5,9 @@
     "socket.io-client": "^4.8.1"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node script.js"
   },
-  "name": "Multiplayer_Drawing_by_Safat",
+  "name": "multiplayer_drawing_by_safat",
   "version": "1.0.0",
   "main": "script.js",
   "keywords": [],
