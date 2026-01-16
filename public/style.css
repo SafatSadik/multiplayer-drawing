@@ -292,6 +292,10 @@ body {
         height: 100%;
         fill: white;
     }
+    .clear_all{
+        rotate: 45deg;
+        font-size: 34px;
+    }
 
 
 
@@ -555,7 +559,6 @@ body {
 
     .checkbox {
         position: fixed;
-        display: flex;
         align-items: center;
         gap: 10px;
         font-size: 18px;
@@ -569,7 +572,7 @@ body {
     }
 
     .checkbox.show {
-        display: block !important;
+        display: flex !important;
     }
 
     .checkbox input {

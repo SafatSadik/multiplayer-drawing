@@ -17,9 +17,13 @@ let selectedtool = "brush";
 let prevMouseX, prevMouseY, snapshot;
 let selectedColor = "#000";
 let selectedFillColor = "#2980d1";
-let userId = Math.random().toString(36).substring(7);
+let userId = "";
 let shapeData
 let isFillEnabled = false;
+
+socket.on("connect", () => {
+    userId = socket.id;
+});
 
 
 
@@ -36,12 +40,15 @@ const phone_fill_input = document.querySelector(".phone_fill_input");
 const phone_stroke_input = document.querySelector(".phone_stroke_input");
 const side_button_container = document.querySelector(".side_button_container");
 const checkmark = document.querySelector(".checkmark");
+const checkbox = document.querySelector(".checkbox");
 const fab_item = document.querySelectorAll(".fab-item");
 const toast = document.getElementById("chat-toast");
 const addTextBtn = document.querySelector(".add_text");
+const clear_all = document.querySelector(".clear_all");
 const chatContainer = document.getElementById("chat-input-container");
 const chatInput = document.getElementById("chat-input");
 const sendBtn = document.getElementById("send-btn");
+
 
 let toastTimer;
 
@@ -63,7 +70,7 @@ chatInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter") sendBtn.click();
 });
 
-function showChatMessage(text, duration = 4000) {
+function showChatMessage(text, duration = 6000) {
     clearTimeout(toastTimer);
     toast.querySelector(".msg").textContent = text;
     toast.classList.add("show");
@@ -144,7 +151,7 @@ toggle.addEventListener("click", () => {
     tool_hub.classList.toggle("show");
     phon_size_slider.classList.toggle("show");
     side_button_container.classList.toggle("active")
-    checkmark.classList.toggle("show")
+    checkbox.classList.toggle("show")
 });
 stroke.style.backgroundColor = selectedColor
 fill.style.backgroundColor = selectedFillColor
@@ -156,17 +163,15 @@ fab_item.forEach((button) => {
         selectedtool = button.id;
     });
 });
-
-
-
 phon_size_slider.addEventListener("change", () => (brushWidth = phon_size_slider.value));
 
 reload_button.addEventListener("click", () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    socket.emit("clear");
     location.reload()
 })
-
+clear_all.addEventListener("click", () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    socket.emit("clear");
+})
 
 
 checkmark.addEventListener("pointerdown", (e) => {
@@ -332,65 +337,17 @@ function drawShape(type, x, y, width, height, color, fill, fill_color, lineWidth
 
 }
 
-function drawBrush(data) {
-    ctx.strokeStyle = data.color;
-    ctx.lineWidth = data.width;
-    ctx.lineTo(data.x, data.y);
+
+function drawSegment(x1, y1, x2, y2, color, width) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.stroke();
 }
-
-// Drawing while moving
-function drawing(e) {
-    if (!isDrawing) return;
-    if (e.touches && e.touches.length > 1) return;
-    e.preventDefault();
-    ctx.putImageData(snapshot, 0, 0);   // restore raw pixels
-
-    // Get pointer and adjust for pan/zoom
-    let p = getPointerPos(e);
-
-    if (selectedtool === "brush" || selectedtool === "eraser") {
-        ctx.strokeStyle = selectedtool === "eraser" ? "#fff" : selectedColor;
-        ctx.lineWidth = brushWidth;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.lineTo(p.x, p.y);
-        ctx.stroke();
-        socket.emit("draw", { userId, type: "brush", x: p.x, y: p.y, color: ctx.strokeStyle, width: ctx.lineWidth });
-    } else {
-        drawShape(selectedtool, prevMouseX, prevMouseY, p.x - prevMouseX, p.y - prevMouseY, selectedColor, isFillEnabled, selectedFillColor, brushWidth);
-        shapeData = { userId, type: selectedtool, x: prevMouseX, y: prevMouseY, width: p.x - prevMouseX, height: p.y - prevMouseY, color: selectedColor, fill: isFillEnabled, fill_color: selectedFillColor, lineWidth: brushWidth }
-    }
-}
-
-// Start drawing
-function startDraw(e) {
-    e.preventDefault(); // prevent scrolling on touch
-    isDrawing = true;
-
-    let p = getPointerPos(e);
-    prevMouseX = p.x;
-    prevMouseY = p.y;
-
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y)
-
-    ctx.lineWidth = brushWidth;
-    ctx.strokeStyle = selectedColor;
-
-    socket.emit("start", { x: p.x, y: p.y, color: selectedColor, width: brushWidth });
-    snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-}
-
-// Stop drawing
-function stopDraw(e) {
-    e.preventDefault();
-    if (selectedtool !== "brush" && selectedtool !== "eraser") {
-        socket.emit("draw", shapeData)
-    }
-    isDrawing = false;
-}
-
 // Event listeners
 canvas.addEventListener("mousedown", startDraw);
 canvas.addEventListener("mousemove", drawing);
@@ -403,32 +360,100 @@ canvas.addEventListener("touchend", stopDraw);
 
 
 
+function startDraw(e) {
+    e.preventDefault();
+    isDrawing = true;
+    const p = getPointerPos(e);
+    prevMouseX = p.x;
+    prevMouseY = p.y;
+    snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+let lastEmit = 0;
 
-socket.on("start", ({ x, y, color, width }) => {
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
-});
+function drawing(e) {
+    if (!isDrawing) return;
+    if (e.touches && e.touches.length > 1) return;
+    e.preventDefault();
+    const now = Date.now();
+    if (now - lastEmit < 20) return; // ~60fps
+    lastEmit = now;
+    const p = getPointerPos(e);
 
+    // draw locally
+    if (selectedtool === "brush" || selectedtool === "eraser") {
+        let color = selectedtool === "eraser" ? "#fff" : selectedColor
+        drawSegment(prevMouseX, prevMouseY, p.x, p.y, color, brushWidth);
+        // send to server
+        socket.emit("draw", {
+            userId,
+            type: "brush",
+            x1: prevMouseX,
+            y1: prevMouseY,
+            x2: p.x,
+            y2: p.y,
+            color: color,
+            width: brushWidth
+        });
+
+        prevMouseX = p.x;
+        prevMouseY = p.y;
+    } else {
+        ctx.putImageData(snapshot, 0, 0);
+        drawShape(selectedtool, prevMouseX, prevMouseY, p.x - prevMouseX, p.y - prevMouseY, selectedColor, isFillEnabled, selectedFillColor, brushWidth);
+        shapeData = { userId, type: selectedtool, x: prevMouseX, y: prevMouseY, width: p.x - prevMouseX, height: p.y - prevMouseY, color: selectedColor, fill: isFillEnabled, fill_color: selectedFillColor, lineWidth: brushWidth }
+    }
+
+}
+function stopDraw(e) {
+    e.preventDefault();
+    if (selectedtool !== "brush" && selectedtool !== "eraser") {
+        socket.emit("draw", shapeData)
+    }
+    socket.emit("updateHistory", ctx.getImageData(0, 0, canvas.width, canvas.height))
+    isDrawing = false;
+
+}
 socket.on("draw", (data) => {
+    // no need to check userId, server already excluded sender
     if (data.type === "brush") {
-        drawBrush(data)
+        drawSegment(
+            data.x1,
+            data.y1,
+            data.x2,
+            data.y2,
+            data.color,
+            data.width
+        );
+
     } else {
         drawShape(data.type, data.x, data.y, data.width, data.height, data.color, data.fill, data.fill_color, data.lineWidth);
     }
-});
 
+});
 
 socket.on("clear", () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
 
-// socket.on("userJoined", (username) => {
-//     alert(`${username} joined!`);
+
+// socket.on("userJoined", (id) => {
+//     showChatMessage("Someone joined ✨");
 // });
 
-// socket.on("user-left", (username) => {
-//     alert(`${username} left!`);
+// socket.on("disconnect", (id) => {
+//     showChatMessage("Someone left 👋");
 // });
-// safat later
+
+// emit when ready
+socket.emit("requestCanvas");
+
+socket.on("requestCanvas", (newUserId) => {
+    const image = canvas.toDataURL("image/png");
+    socket.emit("canvasData", { toUserId: newUserId, image });
+});
+
+socket.on("canvasData", (image) => {
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0);
+    img.src = image;
+});
