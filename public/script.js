@@ -26,8 +26,7 @@ let isFillEnabled = false;
 socket.on("connect", () => {
     userId = socket.id;
 });
-let totalpackatesent = []
-let totalpackatereceived = []
+
 
 
 // phone
@@ -395,8 +394,6 @@ function drawing(e) {
             color: color,
             width: brushWidth
         });
-        totalpackatesent.push([prevMouseX, prevMouseY, p.x, p.y])
-        console.log("totalpackatesent", totalpackatesent.length)
 
         prevMouseX = p.x;
         prevMouseY = p.y;
@@ -417,14 +414,6 @@ function stopDraw(e) {
 
 
 socket.on("draw", (data) => {
-    // no need to check userId, server already excluded sender
-    totalpackatereceived.push([
-        data.x1,
-        data.y1,
-        data.x2,
-        data.y2])
-    console.log("totalpackatereceived", totalpackatereceived.length)
-
     if (data.type === "brush") {
         drawSegment(
             data.x1,

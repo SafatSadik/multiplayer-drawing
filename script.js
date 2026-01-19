@@ -23,7 +23,6 @@ io.on("connection", (socket) => {
         // send draw to everyone EXCEPT sender
         socket.broadcast.emit("draw",data );
         history.push(data)
-        console.log(history.length)
     });
 
     /* ---------- CHAT ---------- */

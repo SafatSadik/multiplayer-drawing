@@ -260,7 +260,7 @@ body {
     .side_button_container {
         position: absolute;
         top: 50px;
-        right: 0px;
+        right: 3px;
         display: flex !important;
         flex-direction: column;
         align-items: center;
@@ -502,7 +502,7 @@ body {
     .size-wrapper {
         position: fixed;
         bottom: 50%;
-        left: 25px;
+        left: 35px;
         transform: translateX(-50%);
     }
 
@@ -511,7 +511,7 @@ body {
         display: none;
         -webkit-appearance: none;
         appearance: none;
-        width: 150px;
+        width: 160px;
         /* this becomes height after rotate */
         height: 15px;
         /* thickness */
