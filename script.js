@@ -1,43 +1,29 @@
 const express = require("express");
 const app = express();
 const server = require('http').Server(app)
-const io = require('socket.io')(server)
+const io = require("socket.io")(server, {
+    transports: ["websocket"],
+    maxHttpBufferSize: 1e8     // 100 MB (safe)
+});
 
 app.use(express.static('public'))
+let history = []
 
 io.on("connection", (socket) => {
     const userId = socket.id;
 
-    // send to everyone that a user joined
-    // socket.broadcast.emit("userJoined", userId);
-
     socket.on("requestCanvas", () => {
-        const socketIds = [...io.of("/").sockets.keys()];
-        const otherUsers = socketIds.filter(id => id !== socket.id);
-
-        if (otherUsers.length === 0) return;
-
-        const randomUser =
-            otherUsers[Math.floor(Math.random() * otherUsers.length)];
-
-        io.to(randomUser).emit("requestCanvas", socket.id);
-    });
-
-    // existing user sends canvas
-    socket.on("canvasData", ({ toUserId, image }) => {
-        io.to(toUserId).emit("canvasData", image);
-    });
-
-    /* ---------- DRAWING ---------- */
-    socket.on("start", (data) => {
-        // send start to everyone INCLUDING sender
-        socket.broadcast.emit("start", { ...data, userId });
+        console.log("canva request")
+        if (history.length == 0) return
+        io.to(userId).emit("recieveCanvas", history);
+        console.log("sent canva history")
     });
 
     socket.on("draw", (data) => {
         // send draw to everyone EXCEPT sender
-
-        socket.broadcast.emit("draw", { ...data, userId });
+        socket.broadcast.emit("draw",data );
+        history.push(data)
+        console.log(history.length)
     });
 
     /* ---------- CHAT ---------- */
@@ -48,13 +34,9 @@ io.on("connection", (socket) => {
 
     /* ---------- CLEAR ---------- */
     socket.on("clear", () => {
+        history.length = 0
         socket.broadcast.emit("clear");
     });
-
-    // /* ---------- DISCONNECT ---------- */
-    // socket.on("disconnect", () => {
-    //     socket.broadcast.emit("userLeft", userId);
-    // });
 });
 
 

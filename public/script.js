@@ -9,7 +9,9 @@ const colorPicker = document.querySelector("#colorPicker");
 const clearCanvas = document.querySelector(".clear_canvas");
 const saveImg = document.querySelector(".save_image");
 const fillColorPicker = document.querySelector("#fill_color_picker");
-const socket = io('/');
+const socket = io('/', {
+    transports: ['websocket']
+});
 
 let isDrawing = false;
 let brushWidth = sizeSlider.value;
@@ -24,7 +26,8 @@ let isFillEnabled = false;
 socket.on("connect", () => {
     userId = socket.id;
 });
-
+let totalpackatesent = []
+let totalpackatereceived = []
 
 
 // phone
@@ -336,8 +339,6 @@ function drawShape(type, x, y, width, height, color, fill, fill_color, lineWidth
     }
 
 }
-
-
 function drawSegment(x1, y1, x2, y2, color, width) {
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -375,7 +376,7 @@ function drawing(e) {
     if (e.touches && e.touches.length > 1) return;
     e.preventDefault();
     const now = Date.now();
-    if (now - lastEmit < 20) return; // ~60fps
+    if (now - lastEmit < 40) return; // ~60fps
     lastEmit = now;
     const p = getPointerPos(e);
 
@@ -394,6 +395,8 @@ function drawing(e) {
             color: color,
             width: brushWidth
         });
+        totalpackatesent.push([prevMouseX, prevMouseY, p.x, p.y])
+        console.log("totalpackatesent", totalpackatesent.length)
 
         prevMouseX = p.x;
         prevMouseY = p.y;
@@ -409,12 +412,19 @@ function stopDraw(e) {
     if (selectedtool !== "brush" && selectedtool !== "eraser") {
         socket.emit("draw", shapeData)
     }
-    socket.emit("updateHistory", ctx.getImageData(0, 0, canvas.width, canvas.height))
     isDrawing = false;
-
 }
+
+
 socket.on("draw", (data) => {
     // no need to check userId, server already excluded sender
+    totalpackatereceived.push([
+        data.x1,
+        data.y1,
+        data.x2,
+        data.y2])
+    console.log("totalpackatereceived", totalpackatereceived.length)
+
     if (data.type === "brush") {
         drawSegment(
             data.x1,
@@ -434,26 +444,22 @@ socket.on("draw", (data) => {
 socket.on("clear", () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
-
-
-// socket.on("userJoined", (id) => {
-//     showChatMessage("Someone joined ✨");
-// });
-
-// socket.on("disconnect", (id) => {
-//     showChatMessage("Someone left 👋");
-// });
-
-// emit when ready
 socket.emit("requestCanvas");
 
-socket.on("requestCanvas", (newUserId) => {
-    const image = canvas.toDataURL("image/png");
-    socket.emit("canvasData", { toUserId: newUserId, image });
-});
+socket.on("recieveCanvas", (history) => {
+    history.forEach(data => {
+        if (data.type === "brush") {
+            drawSegment(
+                data.x1,
+                data.y1,
+                data.x2,
+                data.y2,
+                data.color,
+                data.width
+            );
 
-socket.on("canvasData", (image) => {
-    const img = new Image();
-    img.onload = () => ctx.drawImage(img, 0, 0);
-    img.src = image;
+        } else {
+            drawShape(data.type, data.x, data.y, data.width, data.height, data.color, data.fill, data.fill_color, data.lineWidth);
+        }
+    })
 });
