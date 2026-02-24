@@ -9,16 +9,15 @@ const colorPicker = document.querySelector("#colorPicker");
 const clearCanvas = document.querySelector(".clear_canvas");
 const saveImg = document.querySelector(".save_image");
 const fillColorPicker = document.querySelector("#fill_color_picker");
-const socket = io('/', {
-    transports: ['websocket']
-});
-const loginOverlay = document.getElementById("login-overlay");
+
+// Login elements
+const loginScreen = document.getElementById("login-screen");
 const loginForm = document.getElementById("login-form");
 const nameInput = document.getElementById("name-input");
-const roomSelect = document.getElementById("room-select");
-const customRoomInput = document.getElementById("custom-room-input");
-const activeRoom = document.getElementById("active-room");
-const activePlayer = document.getElementById("active-player");
+const roomInput = document.getElementById("room-input");
+const drawingContainer = document.querySelector(".drawing_container");
+
+let socket = null;
 
 let isDrawing = false;
 let brushWidth = sizeSlider.value;
@@ -29,59 +28,14 @@ let selectedFillColor = "#2980d1";
 let userId = "";
 let shapeData
 let isFillEnabled = false;
-let joinedRoom = "";
-let playerName = "";
-
-socket.on("connect", () => {
-    userId = socket.id;
-});
-
-roomSelect.addEventListener("change", () => {
-    const usingCustomRoom = roomSelect.value === "custom";
-    customRoomInput.hidden = !usingCustomRoom;
-    customRoomInput.required = usingCustomRoom;
-    if (usingCustomRoom) {
-        customRoomInput.focus();
-    }
-});
-
-loginForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const resolvedName = nameInput.value.trim();
-    const resolvedRoom = roomSelect.value === "custom"
-        ? customRoomInput.value.trim().toLowerCase()
-        : "safat";
-
-    if (!resolvedName || !resolvedRoom) return;
-
-    playerName = resolvedName;
-    joinedRoom = resolvedRoom;
-    activePlayer.textContent = playerName;
-    activeRoom.textContent = joinedRoom;
-
-    socket.emit("joinRoom", {
-        name: playerName,
-        room: joinedRoom
-    });
-});
-
-socket.on("joinedRoom", ({ room, name, color }) => {
-    joinedRoom = room;
-    playerName = name;
-    activeRoom.textContent = room;
-    activePlayer.textContent = name;
-    selectedColor = color;
-    colorPicker.value = color;
-    stroke.style.backgroundColor = color;
-    loginOverlay.classList.add("hidden");
-    addChatMessage({ name: "System", text: `You joined room ${room}`, color: "#7a7a7a" });
-});
+let currentUser = { name: "", room: "Lolipop" };
 
 
 
 // phone
 const download_button = document.querySelector(".download_button"); //phone
 const reload_button = document.querySelector(".reload_button");
+const import_button = document.querySelector(".import_button");
 const fab = document.querySelector(".fab");
 const toggle = document.querySelector(".fab-toggle");
 const tool_hub = document.querySelector(".tool_hub");
@@ -94,37 +48,28 @@ const side_button_container = document.querySelector(".side_button_container");
 const checkmark = document.querySelector(".checkmark");
 const checkbox = document.querySelector(".checkbox");
 const fab_item = document.querySelectorAll(".fab-item");
-const chatMessages = document.getElementById("chat-messages");
+const toast = document.getElementById("chat-toast");
 const addTextBtn = document.querySelector(".add_text");
 const clear_all = document.querySelector(".clear_all");
 const chatContainer = document.getElementById("chat-input-container");
 const chatInput = document.getElementById("chat-input");
 const sendBtn = document.getElementById("send-btn");
-const openChatBtn = document.querySelector(".open_chat");
+const chatMessages = document.getElementById("chat-messages");
+const chatPanel = document.getElementById("chat-panel");
 
 
-const chatHistory = [];
-const MAX_CHAT_MESSAGES = 10;
+let toastTimer;
 
 addTextBtn.addEventListener("click", () => {
     chatContainer.classList.add("show");
-    chatInput.focus();
+    chatInput.focus(); // bring up the phone keyboard
 });
-
-if (openChatBtn) {
-    openChatBtn.addEventListener("click", () => {
-        chatContainer.classList.add("show");
-        chatInput.focus();
-    });
-}
 
 // Optional: send message
 sendBtn.addEventListener("click", () => {
-    if (!joinedRoom) return;
     const msg = chatInput.value.trim();
-    if (!msg) return;
-    socket.emit("msg", { room: joinedRoom, name: playerName, text: msg, color: selectedColor })
-    addChatMessage({ name: playerName, text: msg, color: selectedColor })
+    if (!msg || !socket) return;
+    socket.emit("msg", msg)
     chatInput.value = "";
     chatContainer.classList.remove("show");
 });
@@ -133,36 +78,39 @@ chatInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter") sendBtn.click();
 });
 
-function addChatMessage(message) {
-    chatHistory.push(message);
-    if (chatHistory.length > MAX_CHAT_MESSAGES) {
-        chatHistory.shift();
-    }
+function showChatMessage(text, duration = 3000) {
+    clearTimeout(toastTimer);
+    toast.querySelector(".msg").textContent = text;
+    toast.classList.add("show");
 
-    chatMessages.innerHTML = "";
-    chatHistory.forEach((item) => {
-        const row = document.createElement("div");
-        row.className = "chat-row";
-
-        const name = document.createElement("span");
-        name.className = "chat-name";
-        name.textContent = item.name;
-        name.style.color = item.color || "#333";
-
-        const text = document.createElement("span");
-        text.className = "chat-text";
-        text.textContent = `: ${item.text}`;
-
-        row.appendChild(name);
-        row.appendChild(text);
-        chatMessages.appendChild(row);
-    });
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    toastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+    }, duration);
 }
 
-socket.on("msg", (msg) => {
-    addChatMessage(msg);
-})
+// Append message to persistent chat panel
+function appendChatMessage(name, text, color) {
+    if (!chatMessages) return;
+
+    const item = document.createElement("div");
+    item.className = "chat-message";
+
+    const nameEl = document.createElement("span");
+    nameEl.className = "chat-name";
+    if (color) nameEl.style.color = color;
+    nameEl.textContent = `${name}:`;
+
+    const textEl = document.createElement("span");
+    textEl.className = "chat-text";
+    textEl.textContent = ` ${text}`;
+
+    item.appendChild(nameEl);
+    item.appendChild(textEl);
+    chatMessages.appendChild(item);
+
+    // auto-scroll to bottom
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
 
 let currentTarget = null;
 
@@ -219,7 +167,7 @@ document.addEventListener("pointerdown", (e) => {
             pickr.hide();
         }
 
-        if (!chatContainer.contains(e.target) && e.target !== addTextBtn && e.target !== openChatBtn) {
+        if (!chatContainer.contains(e.target) && e.target !== addTextBtn) {
             chatContainer.classList.remove("show");
         }
     });
@@ -233,6 +181,15 @@ toggle.addEventListener("click", () => {
     phon_size_slider.classList.toggle("show");
     side_button_container.classList.toggle("active")
     checkbox.classList.toggle("show")
+
+    // On phone, show/hide the chat panel when FAB opens/closes
+    if (window.innerWidth <= 768 && chatPanel) {
+        if (fab.classList.contains("open")) {
+            chatPanel.classList.add("show");
+        } else {
+            chatPanel.classList.remove("show");
+        }
+    }
 });
 stroke.style.backgroundColor = selectedColor
 fill.style.backgroundColor = selectedFillColor
@@ -251,8 +208,9 @@ reload_button.addEventListener("click", () => {
 })
 clear_all.addEventListener("click", () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!joinedRoom) return;
-    socket.emit("clear", { room: joinedRoom });
+    if (socket) {
+        socket.emit("clear");
+    }
 })
 
 
@@ -274,7 +232,7 @@ checkmark.addEventListener("pointerdown", (e) => {
 
 window.addEventListener("load", function () {
     canvas.width = 1000;
-    canvas.height = 1000;
+    canvas.height = 1500;
 });
 
 
@@ -377,8 +335,9 @@ fillColorPicker.addEventListener("change", () => {
 
 clearCanvas.addEventListener("click", () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!joinedRoom) return;
-    socket.emit("clear", { room: joinedRoom });
+    if (socket) {
+        socket.emit("clear");
+    }
 });
 
 sizeSlider.addEventListener("change", () => (brushWidth = sizeSlider.value));
@@ -386,6 +345,44 @@ sizeSlider.addEventListener("change", () => (brushWidth = sizeSlider.value));
 
 saveImg.addEventListener("click", save_canva);
 download_button.addEventListener("click", save_canva);
+
+// Import previously saved canvas image (PNG/JPEG etc.)
+if (import_button) {
+    const importInput = document.createElement("input");
+    importInput.type = "file";
+    importInput.accept = "image/*";
+    importInput.style.display = "none";
+    document.body.appendChild(importInput);
+
+    import_button.addEventListener("click", () => {
+        importInput.value = "";
+        importInput.click();
+    });
+
+    importInput.addEventListener("change", () => {
+        const file = importInput.files && importInput.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                // Clear and draw the imported image centered, scaled to fit
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+                const drawWidth = img.width * scale;
+                const drawHeight = img.height * scale;
+                const drawX = (canvas.width - drawWidth) / 2;
+                const drawY = (canvas.height - drawHeight) / 2;
+
+                ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
 
 function save_canva() {
     const link = document.createElement("a");
@@ -442,7 +439,6 @@ canvas.addEventListener("touchend", stopDraw);
 
 
 function startDraw(e) {
-    if (!joinedRoom) return;
     e.preventDefault();
     isDrawing = true;
     const p = getPointerPos(e);
@@ -466,10 +462,8 @@ function drawing(e) {
         let color = selectedtool === "eraser" ? "#fff" : selectedColor
         drawSegment(prevMouseX, prevMouseY, p.x, p.y, color, brushWidth);
         // send to server
-        if (!joinedRoom) return;
         socket.emit("draw", {
             userId,
-            room: joinedRoom,
             type: "brush",
             x1: prevMouseX,
             y1: prevMouseY,
@@ -484,43 +478,28 @@ function drawing(e) {
     } else {
         ctx.putImageData(snapshot, 0, 0);
         drawShape(selectedtool, prevMouseX, prevMouseY, p.x - prevMouseX, p.y - prevMouseY, selectedColor, isFillEnabled, selectedFillColor, brushWidth);
-        shapeData = { userId, room: joinedRoom, type: selectedtool, x: prevMouseX, y: prevMouseY, width: p.x - prevMouseX, height: p.y - prevMouseY, color: selectedColor, fill: isFillEnabled, fill_color: selectedFillColor, lineWidth: brushWidth }
+        shapeData = { userId, type: selectedtool, x: prevMouseX, y: prevMouseY, width: p.x - prevMouseX, height: p.y - prevMouseY, color: selectedColor, fill: isFillEnabled, fill_color: selectedFillColor, lineWidth: brushWidth }
     }
 
 }
 function stopDraw(e) {
     e.preventDefault();
-    if (selectedtool !== "brush" && selectedtool !== "eraser") {
-        if (!joinedRoom) return;
+    if (selectedtool !== "brush" && selectedtool !== "eraser" && socket) {
         socket.emit("draw", shapeData)
     }
     isDrawing = false;
 }
 
+function setupSocketHandlers() {
+    if (!socket) return;
 
-socket.on("draw", (data) => {
-    if (data.type === "brush") {
-        drawSegment(
-            data.x1,
-            data.y1,
-            data.x2,
-            data.y2,
-            data.color,
-            data.width
-        );
+    socket.on("connect", () => {
+        userId = socket.id;
+        showChatMessage(`✨ ${currentUser.name || "Someone"} joined room "${currentUser.room}"`);
+        socket.emit("requestCanvas");
+    });
 
-    } else {
-        drawShape(data.type, data.x, data.y, data.width, data.height, data.color, data.fill, data.fill_color, data.lineWidth);
-    }
-
-});
-
-socket.on("clear", () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-});
-socket.on("roomState", (history) => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    history.forEach(data => {
+    socket.on("draw", (data) => {
         if (data.type === "brush") {
             drawSegment(
                 data.x1,
@@ -534,6 +513,70 @@ socket.on("roomState", (history) => {
         } else {
             drawShape(data.type, data.x, data.y, data.width, data.height, data.color, data.fill, data.fill_color, data.lineWidth);
         }
-    })
-});
 
+    });
+
+    socket.on("clear", () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+
+    socket.on("recieveCanvas", (history) => {
+        history.forEach(data => {
+            if (data.type === "brush") {
+                drawSegment(
+                    data.x1,
+                    data.y1,
+                    data.x2,
+                    data.y2,
+                    data.color,
+                    data.width
+                );
+
+            } else {
+                drawShape(data.type, data.x, data.y, data.width, data.height, data.color, data.fill, data.fill_color, data.lineWidth);
+            }
+        })
+    });
+
+    socket.on("msg", (msg) => {
+        // msg is an object: { name, text, color }
+        const { name, text, color } = msg || {};
+        if (!text) return;
+        appendChatMessage(name || "User", text, color);
+
+        // Also show a temporary popup toast for the latest message
+        const displayName = name || "User";
+        showChatMessage(`${displayName}: ${text}`);
+    });
+}
+
+function initSocket(name, room) {
+    currentUser = {
+        name: name || "Guest",
+        room: room || "Lolipop"
+    };
+
+    socket = io('/', {
+        transports: ['websocket'],
+        query: {
+            name: currentUser.name,
+            room: currentUser.room
+        }
+    });
+
+    setupSocketHandlers();
+}
+
+// Login form submit -> connect socket & show canvas
+if (loginForm) {
+    loginForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = nameInput.value.trim() || "Guest";
+        const room = (roomInput.value.trim() || "Lolipop");
+
+        initSocket(name, room);
+
+        if (loginScreen) loginScreen.style.display = "none";
+        if (drawingContainer) drawingContainer.classList.add("active");
+    });
+}

@@ -1,90 +1,76 @@
 const express = require("express");
 const app = express();
-const server = require("http").Server(app);
+const server = require('http').Server(app)
 const io = require("socket.io")(server, {
     transports: ["websocket"],
-    maxHttpBufferSize: 1e8 // 100 MB (safe)
+    maxHttpBufferSize: 1e8     // 100 MB (safe)
 });
 
-app.use(express.static("public"));
+app.use(express.static('public'))
 
-const roomHistories = new Map();
-
-function getRoomHistory(roomName) {
-    if (!roomHistories.has(roomName)) {
-        roomHistories.set(roomName, []);
-    }
-    return roomHistories.get(roomName);
-}
-
-function randomColor() {
-    const value = Math.floor(Math.random() * 0xffffff);
-    return `#${value.toString(16).padStart(6, "0")}`;
-}
+// Per-room canvas history
+// {
+//   [roomName]: [ drawEvent, ... ]
+// }
+const roomHistory = {};
 
 io.on("connection", (socket) => {
-    let currentRoom = "";
-    let playerName = "";
+    const userId = socket.id;
+    const { name, room } = socket.handshake.query || {};
+    const userName = (name || "Guest").toString();
+    const roomName = (room || "Lolipop").toString();
 
-    socket.on("joinRoom", ({ room, name }) => {
-        const safeRoom = (room || "safat").toString().trim().toLowerCase();
-        const safeName = (name || "Guest").toString().trim();
+    // assign a random color per user (stable for this connection)
+    const userColor = getRandomColor();
 
-        if (!safeRoom || !safeName) return;
+    socket.join(roomName);
 
-        if (currentRoom) {
-            socket.leave(currentRoom);
-        }
+    if (!roomHistory[roomName]) {
+        roomHistory[roomName] = [];
+    }
 
-        currentRoom = safeRoom;
-        playerName = safeName;
-        socket.join(currentRoom);
-
-        const playerColor = randomColor();
-        socket.data.playerColor = playerColor;
-
-        socket.emit("joinedRoom", {
-            room: currentRoom,
-            name: playerName,
-            color: playerColor
-        });
-
-        const history = getRoomHistory(currentRoom);
-        socket.emit("roomState", history);
-
-        socket.to(currentRoom).emit("msg", {
-            name: "System",
-            text: `${playerName} joined ${currentRoom}`,
-            color: "#7a7a7a"
-        });
+    socket.on("requestCanvas", () => {
+        console.log("canva request")
+        const history = roomHistory[roomName] || [];
+        if (history.length === 0) return
+        io.to(userId).emit("recieveCanvas", history);
+        console.log("sent canva history")
     });
 
     socket.on("draw", (data) => {
-        if (!data?.room) return;
-
-        const history = getRoomHistory(data.room);
-        history.push(data);
-        socket.to(data.room).emit("draw", data);
+        // send draw to everyone EXCEPT sender
+        socket.to(roomName).emit("draw", data);
+        roomHistory[roomName].push(data);
     });
 
-    socket.on("msg", (payload) => {
-        if (!payload?.room || !payload?.text || !payload?.name) return;
-
-        socket.to(payload.room).emit("msg", {
-            name: payload.name,
-            text: payload.text,
-            color: socket.data.playerColor || payload.color || randomColor()
-        });
+    /* ---------- CHAT ---------- */
+    socket.on("msg", (msg) => {
+        console.log(msg)
+        const payload = {
+            name: userName,
+            text: msg,
+            color: userColor
+        };
+        // send to everyone in the room including sender
+        io.to(roomName).emit("msg", payload);
     });
 
-    socket.on("clear", ({ room }) => {
-        if (!room) return;
-
-        const history = getRoomHistory(room);
-        history.length = 0;
-        socket.to(room).emit("clear");
+    /* ---------- CLEAR ---------- */
+    socket.on("clear", () => {
+        roomHistory[roomName] = [];
+        socket.to(roomName).emit("clear");
     });
 });
+
+// simple random pastel color generator
+function getRandomColor() {
+    const hue = Math.floor(Math.random() * 360); // 0-359
+    const saturation = 70; // keep fairly strong
+    const lightness = 60;  // not too dark
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
+
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
