@@ -9,8 +9,14 @@ const io = require("socket.io")(server, {
 app.use(express.static('public'))
 let history = []
 
+function randomColor() {
+    const value = Math.floor(Math.random() * 0xffffff);
+    return `#${value.toString(16).padStart(6, "0")}`;
+}
+
 io.on("connection", (socket) => {
     const userId = socket.id;
+    const playerColor = randomColor();
 
     socket.on("requestCanvas", () => {
         console.log("canva request")
@@ -26,9 +32,15 @@ io.on("connection", (socket) => {
     });
 
     /* ---------- CHAT ---------- */
-    socket.on("msg", (msg) => {
-        console.log(msg)
-        socket.broadcast.emit("msg", msg);
+    socket.on("msg", (payload) => {
+        const safeMsg = {
+            name: payload?.name || `User-${userId.slice(0, 4)}`,
+            text: payload?.text || "",
+            color: payload?.color || playerColor
+        };
+        if (!safeMsg.text) return;
+        console.log(safeMsg)
+        socket.broadcast.emit("msg", safeMsg);
     });
 
     /* ---------- CLEAR ---------- */

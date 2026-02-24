@@ -247,6 +247,51 @@ body {
     background-color: white;
 }
 
+
+#chat-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 280px;
+    max-height: 220px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat_title {
+    font-weight: 700;
+    font-size: 13px;
+    padding: 8px 10px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+#chat-messages {
+    padding: 8px 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.chat_msg {
+    word-break: break-word;
+}
+
+.chat_name {
+    font-weight: 700;
+}
+
+.open_chat {
+    background: #111 !important;
+    border: 1px solid #111 !important;
+}
+
 .side_button_container {
     display: none;
 }
@@ -624,54 +669,6 @@ body {
         z-index: 12 !important;
     }
 
-    #chat-toast {
-        position: fixed;
-        top: -110px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 92%;
-        max-width: 520px;
-
-        background: linear-gradient(135deg, #ffd6e8, #dff1ff);
-        color: #2b2b2b;
-
-        padding: 18px 22px 22px;
-        border-radius: 18px 18px 26px 26px;
-
-        font-size: 17px;
-        font-weight: 600;
-        text-align: center;
-
-        box-shadow:
-            0 14px 35px rgba(255, 120, 180, 0.35),
-            0 6px 12px rgba(0, 0, 0, 0.08);
-
-        z-index: 9999;
-        opacity: 0;
-
-        transition:
-            top 0.5s cubic-bezier(.25, .9, .25, 1),
-            opacity 0.25s;
-    }
-
-    /* Cute bottom notch */
-    #chat-toast::after {
-        content: "";
-        position: absolute;
-        bottom: -12px;
-        left: 50%;
-        transform: translateX(-50%) rotate(45deg);
-        width: 20px;
-        height: 20px;
-        background: #dff1ff;
-        border-radius: 4px;
-    }
-
-    #chat-toast.show {
-        top: 16px;
-        opacity: 1;
-    }
-
     #chat-input-container {
         position: fixed;
         bottom: -90px;
@@ -735,6 +732,18 @@ body {
 
 
 
+
+
+    #chat-panel {
+        width: calc(100% - 16px);
+        right: 8px;
+        left: 8px;
+        max-height: 160px;
+    }
+
+    .open_chat {
+        display: none;
+    }
 
     .hidden {
         display: none !important;

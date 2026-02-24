@@ -22,9 +22,11 @@ let selectedFillColor = "#2980d1";
 let userId = "";
 let shapeData
 let isFillEnabled = false;
+let username = "Guest";
 
 socket.on("connect", () => {
     userId = socket.id;
+    username = `User-${userId.slice(0, 4)}`;
 });
 
 
@@ -44,26 +46,58 @@ const side_button_container = document.querySelector(".side_button_container");
 const checkmark = document.querySelector(".checkmark");
 const checkbox = document.querySelector(".checkbox");
 const fab_item = document.querySelectorAll(".fab-item");
-const toast = document.getElementById("chat-toast");
+const chatMessages = document.getElementById("chat-messages");
 const addTextBtn = document.querySelector(".add_text");
 const clear_all = document.querySelector(".clear_all");
 const chatContainer = document.getElementById("chat-input-container");
 const chatInput = document.getElementById("chat-input");
 const sendBtn = document.getElementById("send-btn");
-
-
-let toastTimer;
+const openChatBtn = document.querySelector(".open_chat");
+const MAX_CHATS = 10;
 
 addTextBtn.addEventListener("click", () => {
     chatContainer.classList.add("show");
-    chatInput.focus(); // bring up the phone keyboard
+    chatInput.focus();
 });
+
+if (openChatBtn) {
+    openChatBtn.addEventListener("click", () => {
+        chatContainer.classList.add("show");
+        chatInput.focus();
+    });
+}
+
+function renderChatMessage(data) {
+    const row = document.createElement("div");
+    row.className = "chat_msg";
+
+    const name = document.createElement("span");
+    name.className = "chat_name";
+    name.textContent = data.name;
+    name.style.color = data.color || "#333";
+
+    const text = document.createElement("span");
+    text.className = "chat_text";
+    text.textContent = `: ${data.text}`;
+
+    row.appendChild(name);
+    row.appendChild(text);
+    chatMessages.appendChild(row);
+
+    while (chatMessages.children.length > MAX_CHATS) {
+        chatMessages.removeChild(chatMessages.firstChild);
+    }
+
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
 
 // Optional: send message
 sendBtn.addEventListener("click", () => {
     const msg = chatInput.value.trim();
     if (!msg) return;
-    socket.emit("msg", msg)
+    const payload = { name: username, text: msg, color: selectedColor };
+    socket.emit("msg", payload);
+    renderChatMessage(payload);
     chatInput.value = "";
     chatContainer.classList.remove("show");
 });
@@ -72,17 +106,8 @@ chatInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter") sendBtn.click();
 });
 
-function showChatMessage(text, duration = 6000) {
-    clearTimeout(toastTimer);
-    toast.querySelector(".msg").textContent = text;
-    toast.classList.add("show");
-
-    toastTimer = setTimeout(() => {
-        toast.classList.remove("show");
-    }, duration);
-}
 socket.on("msg", (msg) => {
-    showChatMessage(msg)
+    renderChatMessage(msg);
 })
 
 let currentTarget = null;
@@ -140,7 +165,7 @@ document.addEventListener("pointerdown", (e) => {
             pickr.hide();
         }
 
-        if (!chatContainer.contains(e.target) && e.target !== addTextBtn) {
+        if (!chatContainer.contains(e.target) && e.target !== addTextBtn && e.target !== openChatBtn) {
             chatContainer.classList.remove("show");
         }
     });
