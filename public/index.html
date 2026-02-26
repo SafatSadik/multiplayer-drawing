@@ -29,7 +29,7 @@
             <p class="login-subtitle">Pick a name and a room to join. Default room is <strong>Lolipop</strong>.</p>
 
             <label for="name-input" class="login-label">Your name</label>
-            <input type="text" id="name-input" class="login-input" placeholder="e.g. Safat" required>
+            <input type="text" maxlength="8" id="name-input" class="login-input" placeholder="e.g. Safat" required>
 
             <label for="room-input" class="login-label">Room name</label>
             <input type="text" id="room-input" class="login-input" value="Lolipop" placeholder="Lolipop">
@@ -73,14 +73,28 @@
                         <img src="icons/brush.svg" alt="">
                         <span>Brush</span>
                     </li>
+                    <li class="option tools" id="pencil">
+                        <img src="icons/pencil.svg" alt="">
+                        <span>Pencil</span>
+                    </li>
+                    <li class="option tools" id="eyedropper">
+                        <img src="icons/eyedroper.png" alt="">
+                        <span>Eyedropper</span>
+                    </li>
                     <li class="option tools" id="eraser">
                         <img src="icons/eraser.svg" alt="">
                         <span>Eraser</span>
                     </li>
+                    <li class="option">
+                        <label for="opacity_slider">Opacity</label>
+                        <input type="range" name="" id="opacity_slider" min="5" max="100" value="100">
+                    </li>
 
                     <li class="option">
-                        <input type="range" name="" id="size_slider" min="1" max="40" value="5">
+                        <label for="size_slider">Size</label>
+                        <input type="range" name="size_slider" id="size_slider" min="1" max="40" value="5">
                     </li>
+
                 </ul>
             </div>
             <div class="row colors">
@@ -105,7 +119,10 @@
             </div>
             <div class="row buttons">
                 <button class="clear_canvas">Clear Canvas</button>
+                <button class="undo_btn">Undo</button>
+                <button class="redo_btn">Redo</button>
                 <button class="save_image">Save As Image</button>
+                <button class="import_button">Import Image</button>
             </div>
         </section>
         <section class="drawing_board">
@@ -134,13 +151,7 @@
 
 
             <div class="side_button_container">
-                <div class="reload_button side_buttons">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 512 512"><!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.-->
-                        <path
-                            d="M436.7 74.7L448 85.4 448 32c0-17.7 14.3-32 32-32s32 14.3 32 32l0 128c0 17.7-14.3 32-32 32l-128 0c-17.7 0-32-14.3-32-32s14.3-32 32-32l47.9 0-7.6-7.2c-.2-.2-.4-.4-.6-.6-75-75-196.5-75-271.5 0s-75 196.5 0 271.5 196.5 75 271.5 0c8.2-8.2 15.5-16.9 21.9-26.1 10.1-14.5 30.1-18 44.6-7.9s18 30.1 7.9 44.6c-8.5 12.2-18.2 23.8-29.1 34.7-100 100-262.1 100-362 0S-25 175 75 75c99.9-99.9 261.7-100 361.7-.3z" />
-                    </svg>
-                </div>
+
                 <div class="download_button side_buttons">
                     <svg xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 448 512"><!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.-->
@@ -151,12 +162,17 @@
                 <div class="import_button side_buttons">
                     ⤒
                 </div>
+
                 <div class="add_text side_buttons">
                     Aa
                 </div>
                 <div class="clear_all side_buttons">
                     +
                 </div>
+                <div class="eyedropper side_buttons" id="eyedropper">
+                    <img src="icons/eyedroper.png" alt="">
+                </div>
+
 
             </div>
 
@@ -188,12 +204,25 @@
                 </div>
             </div>
 
+            <div class="undo_redo_container">
+                <div class="undo_btn ">
+                    ↶
+                </div>
+                <div class="redo_btn">
+                    ↷
+                </div>
+
+            </div>
+
+
+
 
 
             <div class="fab ">
                 <button class="fab-toggle">+</button>
 
                 <button class="fab-item active_item brush" id="brush">🖌️</button>
+                <button class="fab-item pencil" id="pencil">✏️</button>
                 <button class="fab-item eraser" id="eraser">
                     <svg xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 576 512"><!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.-->
@@ -225,6 +254,7 @@
                     </svg>
                 </button>
                 <button class="fab-item line" id="line">|</button>
+
             </div>
 
         </section>

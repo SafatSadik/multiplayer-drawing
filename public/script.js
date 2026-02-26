@@ -4,9 +4,14 @@ const ctx = canvas.getContext("2d");
 const toolBtns = document.querySelectorAll(".tools");
 const fillColor = document.querySelector("#fill_color");
 const sizeSlider = document.querySelector("#size_slider");
+const opacitySlider = document.querySelector("#opacity_slider");
+const shadeSlider = document.querySelector("#shade_slider");
 const colorsbutton = document.querySelectorAll(".colors .option");
 const colorPicker = document.querySelector("#colorPicker");
 const clearCanvas = document.querySelector(".clear_canvas");
+const undo_redo_container = document.querySelector(".undo_redo_container");
+const undoBtns = document.querySelectorAll(".undo_btn");
+const redoBtns = document.querySelectorAll(".redo_btn");
 const saveImg = document.querySelector(".save_image");
 const fillColorPicker = document.querySelector("#fill_color_picker");
 
@@ -29,13 +34,15 @@ let userId = "";
 let shapeData
 let isFillEnabled = false;
 let currentUser = { name: "", room: "Lolipop" };
+let currentStrokeId = null;
+let brushOpacity = opacitySlider ? Number(opacitySlider.value) / 100 : 1;
+let shadeStrength = shadeSlider ? Number(shadeSlider.value) / 100 : 0.25;
 
 
 
 // phone
 const download_button = document.querySelector(".download_button"); //phone
-const reload_button = document.querySelector(".reload_button");
-const import_button = document.querySelector(".import_button");
+const import_buttons = document.querySelectorAll(".import_button");
 const fab = document.querySelector(".fab");
 const toggle = document.querySelector(".fab-toggle");
 const tool_hub = document.querySelector(".tool_hub");
@@ -56,9 +63,18 @@ const chatInput = document.getElementById("chat-input");
 const sendBtn = document.getElementById("send-btn");
 const chatMessages = document.getElementById("chat-messages");
 const chatPanel = document.getElementById("chat-panel");
+const eyedropper = document.querySelector(".eyedropper")
+
+const cursorIcons = ["./icons/soward.png", "./icons/hammer.png"];
+const cursorIcon = cursorIcons[Math.floor(Math.random() * cursorIcons.length)];
+
+eyedropper.addEventListener("click", () => {
+    selectTool("eyedropper")
+})
 
 
 let toastTimer;
+const remoteCursors = {}; // userId -> { el, hideTimer }
 
 addTextBtn.addEventListener("click", () => {
     chatContainer.classList.add("show");
@@ -110,6 +126,37 @@ function appendChatMessage(name, text, color) {
 
     // auto-scroll to bottom
     chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function getOrCreateRemoteCursor(userId, userName, userColor) {
+    if (remoteCursors[userId]) return remoteCursors[userId];
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "remote-cursor";
+
+    const icon = document.createElement("div");
+    icon.className = "remote-cursor-icon";
+    icon.setAttribute("style", `background-image:url("${cursorIcon}")`)
+
+
+    const label = document.createElement("div");
+    label.className = "remote-cursor-label";
+    label.textContent = userName || "User";
+    if (userColor) {
+        label.style.backgroundColor = userColor;
+    }
+
+    wrapper.appendChild(icon);
+    wrapper.appendChild(label);
+
+    board.appendChild(wrapper);
+
+    remoteCursors[userId] = {
+        el: wrapper,
+        hideTimer: null
+    };
+
+    return remoteCursors[userId];
 }
 
 let currentTarget = null;
@@ -181,6 +228,7 @@ toggle.addEventListener("click", () => {
     phon_size_slider.classList.toggle("show");
     side_button_container.classList.toggle("active")
     checkbox.classList.toggle("show")
+    undo_redo_container.classList.toggle("show")
 
     // On phone, show/hide the chat panel when FAB opens/closes
     if (window.innerWidth <= 768 && chatPanel) {
@@ -196,16 +244,14 @@ fill.style.backgroundColor = selectedFillColor
 
 fab_item.forEach((button) => {
     button.addEventListener("click", () => {
-        document.querySelector(".fab-item.active_item").classList.remove("active_item");
-        button.classList.add("active_item");
-        selectedtool = button.id;
+        selectTool(button.id);
     });
 });
 phon_size_slider.addEventListener("change", () => (brushWidth = phon_size_slider.value));
+if (opacitySlider) opacitySlider.addEventListener("change", () => (brushOpacity = Number(opacitySlider.value) / 100));
 
-reload_button.addEventListener("click", () => {
-    location.reload()
-})
+
+
 clear_all.addEventListener("click", () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (socket) {
@@ -296,6 +342,59 @@ hammer.on('pinchmove', (e) => {
 
 //     hammer code endd
 
+// Keyboard pan/zoom for desktop
+document.addEventListener("keydown", (e) => {
+    // Avoid interfering while typing in inputs or textareas
+    const target = e.target;
+    const isTypingElement =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+
+    if (isTypingElement) return;
+    if (e.ctrlKey || e.metaKey) return;
+
+    const moveStep = 40;
+    const zoomStep = 0.1;
+
+    switch (e.key) {
+        case "ArrowUp":
+            y += moveStep;
+            applyTransform();
+            e.preventDefault();
+            break;
+        case "ArrowDown":
+            y -= moveStep;
+            applyTransform();
+            e.preventDefault();
+            break;
+        case "ArrowLeft":
+            x += moveStep;
+            applyTransform();
+            e.preventDefault();
+            break;
+        case "ArrowRight":
+            x -= moveStep;
+            applyTransform();
+            e.preventDefault();
+            break;
+        case "+":
+        case "=": // plus without shift
+            scale = Math.min(5, scale + zoomStep);
+            applyTransform();
+            e.preventDefault();
+            break;
+        case "-":
+        case "_":
+            scale = Math.max(0.5, scale - zoomStep);
+            applyTransform();
+            e.preventDefault();
+            break;
+        default:
+            break;
+    }
+});
+
 
 // Get coordinates
 function getPointerPos(e) {
@@ -309,11 +408,85 @@ function getPointerPos(e) {
     };
 }
 
+function clamp(n, min, max) {
+    return Math.max(min, Math.min(max, n));
+}
+
+function rgbToHex(r, g, b) {
+    const toHex = (v) => v.toString(16).padStart(2, "0");
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function pickColorAtEvent(e) {
+    const p = getPointerPos(e);
+    const px = Math.floor(clamp(p.x, 0, canvas.width - 1));
+    const py = Math.floor(clamp(p.y, 0, canvas.height - 1));
+    const data = ctx.getImageData(px, py, 1, 1).data;
+    const hex = rgbToHex(data[0], data[1], data[2]);
+    selectedColor = hex;
+
+    if (colorPicker) colorPicker.value = hex;
+    if (stroke) stroke.style.backgroundColor = hex;
+
+    // keep Pickr in sync if it exists
+    try {
+        if (typeof pickr !== "undefined" && pickr) pickr.setColor(hex);
+    } catch { }
+
+    showChatMessage(`🎯 Picked ${hex}`, 1500);
+    return hex;
+}
+
+function setDesktopActiveTool(toolId) {
+    const allTools = document.querySelectorAll(".tools_board .option.tools");
+    allTools.forEach((el) => el.classList.remove("active"));
+    const next = document.querySelector(`.tools_board .option.tools#${CSS.escape(toolId)}`);
+    if (next) next.classList.add("active");
+}
+
+function setMobileActiveTool(toolId) {
+    const items = document.querySelectorAll(".fab-item");
+    items.forEach((el) => el.classList.remove("active_item"));
+    const next = document.querySelector(`.fab-item#${CSS.escape(toolId)}`);
+    if (next) next.classList.add("active_item");
+}
+
+function selectTool(toolId) {
+    selectedtool = toolId;
+    setDesktopActiveTool(toolId);
+    setMobileActiveTool(toolId);
+}
+
+function getBrushStyleForTool(tool) {
+    if (tool === "pencil") {
+        return {
+            tool: "pencil",
+            color: selectedColor,
+            alpha: clamp(brushOpacity, 0.05, 1),
+            composite: "source-over"
+        };
+    }
+
+    if (tool === "eraser") {
+        return {
+            tool: "eraser",
+            color: "#ffffff",
+            alpha: 1,
+            composite: "source-over"
+        };
+    }
+
+    return {
+        tool: "brush",
+        color: selectedColor,
+        alpha: clamp(brushOpacity, 0.05, 1),
+        composite: "source-over"
+    };
+}
+
 toolBtns.forEach((button) => {
     button.addEventListener("click", () => {
-        document.querySelector(".drawing_container .options .active").classList.remove("active");
-        button.classList.add("active");
-        selectedtool = button.id;
+        selectTool(button.id);
     });
 });
 
@@ -321,8 +494,13 @@ colorsbutton.forEach((button) => {
     button.addEventListener("click", () => {
         document.querySelector(".drawing_container .colors .selected").classList.remove("selected");
         button.classList.add("selected");
-        selectedColor = window.getComputedStyle(button).getPropertyValue("background-color");
-        colorPicker.value = selectedColor;
+        const bg = window.getComputedStyle(button).getPropertyValue("background-color");
+        selectedColor = cssColorToHex(bg) || bg;
+        if (colorPicker && selectedColor.startsWith("#")) colorPicker.value = selectedColor;
+        if (stroke) stroke.style.backgroundColor = selectedColor;
+        try {
+            if (typeof pickr !== "undefined" && pickr && selectedColor.startsWith("#")) pickr.setColor(selectedColor);
+        } catch { }
     });
 });
 
@@ -340,23 +518,64 @@ clearCanvas.addEventListener("click", () => {
     }
 });
 
+function requestUndo() {
+    if (!socket) return;
+    socket.emit("undo");
+}
+
+function requestRedo() {
+    if (!socket) return;
+    socket.emit("redo");
+}
+
+undoBtns.forEach((btn) => btn.addEventListener("click", requestUndo));
+redoBtns.forEach((btn) => btn.addEventListener("click", requestRedo));
+
+// Keyboard shortcuts
+document.addEventListener("keydown", (e) => {
+    const target = e.target;
+    const isTypingElement =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+
+    if (isTypingElement) return;
+
+    const key = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && key === "z") {
+        if (e.shiftKey) {
+            requestRedo();
+        } else {
+            requestUndo();
+        }
+        e.preventDefault();
+        return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && key === "y") {
+        requestRedo();
+        e.preventDefault();
+    }
+});
+
 sizeSlider.addEventListener("change", () => (brushWidth = sizeSlider.value));
 
 
 saveImg.addEventListener("click", save_canva);
 download_button.addEventListener("click", save_canva);
 
-// Import previously saved canvas image (PNG/JPEG etc.)
-if (import_button) {
+if (import_buttons && import_buttons.length > 0) {
     const importInput = document.createElement("input");
     importInput.type = "file";
     importInput.accept = "image/*";
     importInput.style.display = "none";
     document.body.appendChild(importInput);
 
-    import_button.addEventListener("click", () => {
-        importInput.value = "";
-        importInput.click();
+    import_buttons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            importInput.value = "";
+            importInput.click();
+        });
     });
 
     importInput.addEventListener("change", () => {
@@ -367,7 +586,6 @@ if (import_button) {
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => {
-                // Clear and draw the imported image centered, scaled to fit
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
@@ -377,6 +595,17 @@ if (import_button) {
                 const drawY = (canvas.height - drawHeight) / 2;
 
                 ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+                // ✅ Emit the image to the server so others receive it
+                socket.emit("importImage", {
+                    dataUrl: e.target.result,
+                    x: drawX,
+                    y: drawY,
+                    width: drawWidth,
+                    height: drawHeight,
+                    canvasWidth: canvas.width,
+                    canvasHeight: canvas.height
+                });
             };
             img.src = e.target.result;
         };
@@ -426,6 +655,56 @@ function drawSegment(x1, y1, x2, y2, color, width) {
     ctx.lineJoin = "round";
     ctx.stroke();
 }
+
+function drawSegmentStyled(x1, y1, x2, y2, color, width, alpha = 1, composite = "source-over") {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.globalCompositeOperation = composite;
+    drawSegment(x1, y1, x2, y2, color, width);
+    ctx.restore();
+}
+
+function renderDrawEvent(data) {
+    if (!data) return;
+
+    if (data.type === "brush") {
+        const alpha = typeof data.alpha === "number" ? data.alpha : 1;
+        const composite = data.composite || "source-over";
+        drawSegmentStyled(data.x1, data.y1, data.x2, data.y2, data.color, data.width, alpha, composite);
+        return;
+    }
+    if (data.type === "importImage") {
+        const img = new Image();
+        img.onload = () => {
+            ctx.drawImage(img, data.x, data.y, data.width, data.height);
+        };
+        img.src = data.dataUrl;
+        return;
+
+    }
+
+    drawShape(data.type, data.x, data.y, data.width, data.height, data.color, data.fill, data.fill_color, data.lineWidth);
+}
+
+function updateRemoteCursorPosition(data) {
+    const id = data.userId;
+    if (!id) return;
+
+    const cx = typeof data.x2 === "number" ? data.x2 : data.x || 0;
+    const cy = typeof data.y2 === "number" ? data.y2 : data.y || 0;
+
+    const px = x + cx * scale;
+    const py = y + cy * scale;
+
+    const cursor = getOrCreateRemoteCursor(id, data.userName, data.userColor);
+    cursor.el.style.display = "flex";
+    cursor.el.style.transform = `translate(${px}px, ${py}px)`;
+
+    if (cursor.hideTimer) clearTimeout(cursor.hideTimer);
+    cursor.hideTimer = setTimeout(() => {
+        cursor.el.style.display = "none";
+    }, 250);
+}
 // Event listeners
 canvas.addEventListener("mousedown", startDraw);
 canvas.addEventListener("mousemove", drawing);
@@ -440,13 +719,69 @@ canvas.addEventListener("touchend", stopDraw);
 
 function startDraw(e) {
     e.preventDefault();
+
+    if (selectedtool === "eyedropper") {
+        pickColorAtEvent(e);
+        selectTool("brush");
+        return;
+    }
+
     isDrawing = true;
     const p = getPointerPos(e);
     prevMouseX = p.x;
     prevMouseY = p.y;
     snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    if (selectedtool === "brush" || selectedtool === "pencil" || selectedtool === "eraser") {
+        currentStrokeId = `${userId || "local"}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    } else {
+        currentStrokeId = `${userId || "local"}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
 }
 let lastEmit = 0;
+
+let pencilLastTime = 0;
+
+function drawPencilSegment(x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const timeDelta = (Date.now() - pencilLastTime) || 16;
+    const speed = dist / timeDelta;
+    pencilLastTime = Date.now();
+    // Slow strokes = dark/thick (pressure 1), fast strokes = light/thin (pressure ~0.15)
+    const pressure = clamp(1 - speed * 0.6, 0.15, 1);
+    const alpha = clamp(pressure * 0.78, 0.15, 0.85);
+    const lineW = clamp(brushWidth * (0.4 + pressure * 0.6), 0.5, brushWidth);
+
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = selectedColor;
+    ctx.lineWidth = lineW;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // Main stroke
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    // Pencil grain: scatter tiny dots along the stroke
+    const steps = Math.max(1, Math.floor(dist / 3));
+    ctx.fillStyle = selectedColor;
+    for (let i = 0; i < steps; i++) {
+        const t = i / steps;
+        const px = x1 + dx * t + (Math.random() - 0.5) * lineW * 0.9;
+        const py = y1 + dy * t + (Math.random() - 0.5) * lineW * 0.9;
+        ctx.globalAlpha = alpha * (0.15 + Math.random() * 0.35);
+        ctx.beginPath();
+        ctx.arc(px, py, Math.random() * (lineW * 0.22) + 0.2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+}
 
 function drawing(e) {
     if (!isDrawing) return;
@@ -458,36 +793,70 @@ function drawing(e) {
     const p = getPointerPos(e);
 
     // draw locally
-    if (selectedtool === "brush" || selectedtool === "eraser") {
-        let color = selectedtool === "eraser" ? "#fff" : selectedColor
-        drawSegment(prevMouseX, prevMouseY, p.x, p.y, color, brushWidth);
-        // send to server
-        socket.emit("draw", {
-            userId,
-            type: "brush",
-            x1: prevMouseX,
-            y1: prevMouseY,
-            x2: p.x,
-            y2: p.y,
-            color: color,
-            width: brushWidth
-        });
+    if (selectedtool === "brush" || selectedtool === "pencil" || selectedtool === "eraser") {
+        if (selectedtool === "pencil") {
+            drawPencilSegment(prevMouseX, prevMouseY, p.x, p.y);
+            if (socket) {
+                const dx = p.x - prevMouseX, dy = p.y - prevMouseY;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                const timeDelta = (now - pencilLastTime) || 16;
+                const speed = dist / timeDelta;
+                const pressure = clamp(1 - speed * 0.6, 0.15, 1);
+                socket.emit("draw", {
+                    userId,
+                    strokeId: currentStrokeId,
+                    tool: "pencil",
+                    type: "brush",
+                    x1: prevMouseX,
+                    y1: prevMouseY,
+                    x2: p.x,
+                    y2: p.y,
+                    color: selectedColor,
+                    width: clamp(brushWidth * (0.4 + pressure * 0.6), 0.5, brushWidth),
+                    alpha: clamp(pressure * 0.78, 0.15, 0.85),
+                    composite: "source-over"
+                });
+            }
+        } else {
+            const style = getBrushStyleForTool(selectedtool);
+            drawSegmentStyled(prevMouseX, prevMouseY, p.x, p.y, style.color, brushWidth, style.alpha, style.composite);
+
+            if (socket) {
+                socket.emit("draw", {
+                    userId,
+                    strokeId: currentStrokeId,
+                    tool: style.tool,
+                    type: "brush",
+                    x1: prevMouseX,
+                    y1: prevMouseY,
+                    x2: p.x,
+                    y2: p.y,
+                    color: style.color,
+                    width: brushWidth,
+                    alpha: style.alpha,
+                    composite: style.composite
+                });
+            }
+        }
 
         prevMouseX = p.x;
         prevMouseY = p.y;
     } else {
         ctx.putImageData(snapshot, 0, 0);
         drawShape(selectedtool, prevMouseX, prevMouseY, p.x - prevMouseX, p.y - prevMouseY, selectedColor, isFillEnabled, selectedFillColor, brushWidth);
-        shapeData = { userId, type: selectedtool, x: prevMouseX, y: prevMouseY, width: p.x - prevMouseX, height: p.y - prevMouseY, color: selectedColor, fill: isFillEnabled, fill_color: selectedFillColor, lineWidth: brushWidth }
+        shapeData = { userId, strokeId: currentStrokeId, type: selectedtool, x: prevMouseX, y: prevMouseY, width: p.x - prevMouseX, height: p.y - prevMouseY, color: selectedColor, fill: isFillEnabled, fill_color: selectedFillColor, lineWidth: brushWidth }
     }
 
 }
 function stopDraw(e) {
     e.preventDefault();
-    if (selectedtool !== "brush" && selectedtool !== "eraser" && socket) {
-        socket.emit("draw", shapeData)
+    const isBrushLike = selectedtool === "brush" || selectedtool === "pencil" || selectedtool === "eraser";
+    if (!isBrushLike && socket && shapeData) {
+        socket.emit("draw", shapeData);
+        shapeData = null;
     }
     isDrawing = false;
+    currentStrokeId = null;
 }
 
 function setupSocketHandlers() {
@@ -500,20 +869,10 @@ function setupSocketHandlers() {
     });
 
     socket.on("draw", (data) => {
-        if (data.type === "brush") {
-            drawSegment(
-                data.x1,
-                data.y1,
-                data.x2,
-                data.y2,
-                data.color,
-                data.width
-            );
+        renderDrawEvent(data);
 
-        } else {
-            drawShape(data.type, data.x, data.y, data.width, data.height, data.color, data.fill, data.fill_color, data.lineWidth);
-        }
-
+        // show a temporary "magical cursor" for the remote user
+        updateRemoteCursorPosition(data);
     });
 
     socket.on("clear", () => {
@@ -521,21 +880,18 @@ function setupSocketHandlers() {
     });
 
     socket.on("recieveCanvas", (history) => {
-        history.forEach(data => {
-            if (data.type === "brush") {
-                drawSegment(
-                    data.x1,
-                    data.y1,
-                    data.x2,
-                    data.y2,
-                    data.color,
-                    data.width
-                );
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        history.forEach(renderDrawEvent);
+    });
 
-            } else {
-                drawShape(data.type, data.x, data.y, data.width, data.height, data.color, data.fill, data.fill_color, data.lineWidth);
-            }
-        })
+    socket.on("resetCanvas", (history) => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        history.forEach(renderDrawEvent);
+
+        // hide remote cursors after a reset
+        Object.values(remoteCursors).forEach((c) => {
+            if (c?.el) c.el.style.display = "none";
+        });
     });
 
     socket.on("msg", (msg) => {
@@ -547,6 +903,16 @@ function setupSocketHandlers() {
         // Also show a temporary popup toast for the latest message
         const displayName = name || "User";
         showChatMessage(`${displayName}: ${text}`);
+    });
+
+    socket.on("importImage", (data) => {
+        console.log("importImage")
+        const img = new Image();
+        img.onload = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, data.x, data.y, data.width, data.height);
+        };
+        img.src = data.dataUrl;
     });
 }
 
@@ -576,7 +942,12 @@ if (loginForm) {
 
         initSocket(name, room);
 
-        if (loginScreen) loginScreen.style.display = "none";
-        if (drawingContainer) drawingContainer.classList.add("active");
+        // Fully hide and remove the login screen after successful login
+        if (loginScreen) {
+            loginScreen.parentNode.removeChild(loginScreen);
+        }
+        if (drawingContainer) {
+            drawingContainer.classList.add("active");
+        }
     });
 }

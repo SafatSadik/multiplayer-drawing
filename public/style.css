@@ -1,6 +1,6 @@
 /* radius of the fab circle */
 :root {
-    --fab-radius: 95px;
+    --fab-radius: 91px;
 }
 
 * {
@@ -9,6 +9,9 @@
     box-sizing: border-box;
 }
 
+.pickr {
+    display: none;
+}
 
 body {
     height: 100vh;
@@ -288,6 +291,88 @@ body {
     color: #333;
 }
 
+/* ---------- Remote cursors ---------- */
+.remote-cursor {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.remote-cursor-icon {
+    width: 40px;
+    height: 40px;
+    /* border-radius: 50%; */
+    border: none;
+    background-color: transparent;
+    /* TODO: replace with your own cursor SVG/PNG URL */
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    /* box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25); */
+}
+
+.remote-cursor-label {
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+/* ---------- Desktop chat input (always visible) ---------- */
+@media (min-width: 769px) {
+    #chat-panel {
+        position: absolute;
+        right: 16px;
+        bottom: 80px;
+        width: 260px;
+        max-height: 40%;
+        display: flex;
+    }
+
+    #chat-input-container {
+        position: absolute;
+        right: 16px;
+        bottom: 16px;
+        width: 260px;
+        display: flex;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.96);
+        padding: 6px 8px;
+        border-radius: 10px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+        z-index: 9999;
+    }
+
+    #chat-input-container input {
+        flex: 1;
+        min-width: 0;
+        border: 1px solid #d0d7e2;
+        outline: none;
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 0.9rem;
+    }
+
+    #chat-input-container #send-btn {
+        flex-shrink: 0;
+        border: none;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        background: #4A98F7;
+        color: white;
+        box-shadow: 0 3px 8px rgba(74, 152, 247, 0.35);
+    }
+}
+
 /* ---------- Login overlay ---------- */
 #login-screen {
     position: fixed;
@@ -375,7 +460,13 @@ body {
     filter: brightness(0.97);
 }
 
-.side_button_container {
+/* ---------- Mobile-only UI defaults (hidden on desktop) ---------- */
+.side_button_container,
+.fab,
+.fab-toggle,
+.fab-item,
+.phon_size_slider,
+.checkbox {
     display: none;
 }
 
@@ -441,12 +532,20 @@ body {
         align-items: center;
         justify-content: center;
     }
+    .drawing_board .eyedropper{
+        padding: 0px !important;
+        background-color: #555 !important;
 
-    .drawing_board .side_buttons svg {
+    }
+
+
+    .drawing_board .side_buttons svg,
+    .drawing_board .side_buttons img {
         width: 100%;
         height: 100%;
         fill: white;
     }
+
 
     .clear_all {
         rotate: 45deg;
@@ -463,6 +562,7 @@ body {
         width: 30px;
         height: 30px;
         display: block;
+        z-index: 9;
     }
 
     .fab-toggle {
@@ -487,8 +587,8 @@ body {
     }
 
     .fab-item {
-        width: 45px;
-        height: 45px;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
         border: none;
         background: #333;
@@ -519,7 +619,6 @@ body {
         width: 100%;
         height: 100%;
         fill: white;
-
     }
 
     .fab-item.active_item {
@@ -577,36 +676,107 @@ body {
         transition-delay: 0.06s;
     }
 
+    .fab.open .fab-item:nth-child(5) {
+        transition-delay: 0.08s;
+    }
+
+    .fab.open .fab-item:nth-child(6) {
+        transition-delay: 0.10s;
+    }
+
+    .fab.open .fab-item:nth-child(7) {
+        transition-delay: 0.12s;
+    }
+
+    .fab.open .fab-item:nth-child(8) {
+        transition-delay: 0.14s;
+    }
+
     .fab-item:active {
         transform: scale(0.9);
     }
 
-    /* SEMI-CIRCLE (180°) */
-    /* angle formula: -180 → 0 */
+    /* SEMI-CIRCLE (180°) — 7 items, step = 30° */
+    /* angles: -180, -150, -120, -90, -60, -30, 0 */
+
 
     .fab.open .brush {
         transform: translate(-50%, -50%) rotate(-180deg) translate(var(--fab-radius)) rotate(180deg);
     }
 
+    .fab.open .pencil {
+        transform: translate(-50%, -50%) rotate(-150deg) translate(var(--fab-radius)) rotate(150deg);
+    }
+
     .fab.open .eraser {
-        transform: translate(-50%, -50%) rotate(-144deg) translate(var(--fab-radius)) rotate(144deg);
+        transform: translate(-50%, -50%) rotate(-120deg) translate(var(--fab-radius)) rotate(120deg);
     }
 
     .fab.open .rect {
-        transform: translate(-50%, -50%) rotate(-108deg) translate(var(--fab-radius)) rotate(108deg);
+        transform: translate(-50%, -50%) rotate(-90deg) translate(var(--fab-radius)) rotate(90deg);
     }
 
     .fab.open .circle {
-        transform: translate(-50%, -50%) rotate(-72deg) translate(var(--fab-radius)) rotate(72deg);
+        transform: translate(-50%, -50%) rotate(-60deg) translate(var(--fab-radius)) rotate(60deg);
     }
 
     .fab.open .triangle {
-        transform: translate(-50%, -50%) rotate(-36deg) translate(var(--fab-radius)) rotate(36deg);
+        transform: translate(-50%, -50%) rotate(-30deg) translate(var(--fab-radius)) rotate(30deg);
     }
 
     .fab.open .line {
         transform: translate(-50%, -50%) rotate(0deg) translate(var(--fab-radius)) rotate(45deg);
     }
+
+    .fab.open .redo_btn {
+        position: absolute;
+
+    }
+
+    .undo_redo_container {
+        position: fixed;
+        bottom: 20px;
+        /* gap from bottom */
+        left: 15px;
+        /* gap from left */
+        right: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 1;
+        opacity: 0.5;
+
+    }
+
+    .undo_redo_container div {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 2px solid rgba(233, 233, 233, 0.596);
+        background-color: rgba(175, 175, 175, 0.596);
+        color: #000;
+
+        box-shadow: 0 0px 12px rgba(206, 76, 156, 0.5);
+        padding: 10px;
+        font-size: 23px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+    }
+
+    .undo_redo_container.show {
+        opacity: 1;
+    }
+
+    .undo_redo_container.show div {
+        background-color: #333;
+        color: white;
+
+    }
+
+
 
 
     /* show when fab opens */
@@ -723,8 +893,8 @@ body {
         font-size: 18px;
         cursor: pointer;
         user-select: none;
-        top: 50%;
-        right: 0px;
+        top: 70%;
+        right: 10px;
         flex-direction: column;
         transform: translate(-50%, -50%);
         display: none;
